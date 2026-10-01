@@ -1,0 +1,19 @@
+services:
+  mcstatus-api:
+    build: .
+    image: mcstatus-api:latest
+    container_name: mcstatus-api
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: "3001"
+      BANNER_DEFAULT_SCALE: "2"
+      # 多服一览的默认列表：不传 servers 参数就用这份
+      OVERVIEW_SERVERS: "金羊毛·主服@play.goldenfleecemc.top:25565:25567,金羊毛·生存服@play.goldenfleecemc.top:25575:25577,金羊毛·创造服@play.goldenfleecemc.top:25585:25587"
+      # 头像数据源链：自研 -> 本机 mccag -> mc-heads 兜底
+      BANNER_AVATAR_PROVIDERS: "mojang,mccag,mc-heads"
+      # 容器内访问宿主机的 mccag 服务（配合下面的 extra_hosts）
+      BANNER_MCCAG_BASE: "http://host.docker.internal:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

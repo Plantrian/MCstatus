@@ -1,0 +1,38 @@
+[Unit]
+Description=mcstatus-api — Minecraft 服务器状态 JSON / 状态图 API
+Documentation=file:///opt/mcstatus-api/README.md
+After=network-online.target
+Wants=network-online.target
+# 不限制重启次数：崩溃/被杀都会立刻拉起来
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/mcstatus-api
+ExecStart=/usr/bin/node src/index.js
+
+Environment=NODE_ENV=production
+Environment=PORT=3001
+Environment=BANNER_DEFAULT_SCALE=2
+Environment=BANNER_AVATAR_PROVIDERS=mojang,mccag,mc-heads
+Environment=BANNER_MCCAG_BASE=http://127.0.0.1:3000
+# 常用服务器列表（多服一览不传 servers 参数时使用）
+Environment="OVERVIEW_SERVERS=主服@play.example.com:25565:25566,生存服@play.example.com:25575:25577"
+
+# 自动拉起
+Restart=always
+RestartSec=5
+# 收到 SIGTERM 后给它 10 秒优雅关闭（服务内部有优雅退出逻辑）
+TimeoutStopSec=10
+
+# 日志进 journald
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mcstatus-api
+
+# 轻度加固：不需要写盘、不需要提权
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

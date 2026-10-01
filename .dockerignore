@@ -1,0 +1,29 @@
+# 依赖与本地产物：镜像里会重新 npm ci，绝不能把宿主机的 node_modules 拷进去
+node_modules
+npm-debug.log*
+*.log
+test-output
+coverage
+dist
+build
+tmp
+*.tgz
+
+# 本地配置 / 密钥
+.env
+.env.*
+.vscode
+.idea
+.DS_Store
+
+# 仓库 / 部署元数据，镜像里用不到
+deploy
+.git
+.gitignore
+.dockerignore
+Dockerfile
+docker-compose.yml
+
+# 注意：test/ 与 assets/ 特意保留 ——
+#   assets/fonts 是运行时字体；test/ 可以在容器里跑 `npm test` 自检
+#   （字体 / emoji 这类渲染问题只有目标环境才复现得出来）

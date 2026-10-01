@@ -1,0 +1,36 @@
+# 依赖
+node_modules/
+
+# 运行日志
+*.log
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs/
+
+# 环境变量（不要把真实配置提交上去）
+.env
+.env.*
+!.env.example
+
+# 测试 / 调试产物
+test-output/
+coverage/
+.eslintcache
+
+# 编辑器与系统文件
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+
+# 构建 / 打包产物
+dist/
+build/
+tmp/
+*.tgz
+
+# 合并 / 补丁残留
+*.orig
+*.rej
