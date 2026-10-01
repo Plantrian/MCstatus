@@ -1,4 +1,5 @@
 # mcstatus-api
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 [English](README.en.md) | [简体中文](README.md)
 
@@ -950,4 +951,4 @@ The in-house implementation depends only on Node built-ins and additionally: val
 
 ## 15. License
 
-MIT
+[MIT](LICENSE)
