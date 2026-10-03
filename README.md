@@ -1,7 +1,7 @@
 # mcstatus-api
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-[English](README.en.md) | [简体中文](README.md)
+[English](README.md) | [简体中文](README.zh.md)
 
 A server-status API for **Minecraft Java Edition**. It speaks both query protocols and serves **JSON data** plus **image endpoints that return a PNG directly**:
 
