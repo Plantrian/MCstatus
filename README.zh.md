@@ -1,6 +1,6 @@
 # mcstatus-api
 
-[简体中文](README.md) | [English](README.en.md)
+[简体中文](README.zh.md) | [English](README.md)
 
 Minecraft **Java 版**服务器状态查询 API。同时跑两套协议，对外提供 **JSON 数据** 与 **直接返回 PNG 的图片接口**：
 
