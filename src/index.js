@@ -1,17 +1,19 @@
 /**
  * src/index.js
  * ---------------------------------------------------------------------------
- * Express 入口（纯 API，不提供页面）：
+ * Express 入口（API + 一个参数调试台页面）：
  *   GET /api/status       单台服务器 JSON
  *   GET /api/banner.png   单台服务器状态图（PNG）
  *   GET /api/overview     多台服务器 JSON 一览
  *   GET /api/overview.png 多台服务器一览图（PNG）
+ *   GET /playground       参数调试台（静态页面，看图 + 拼链接）
  *
  * 监听端口由环境变量 PORT 控制，默认 3000。
  * 直接 `node src/index.js` 时才会 listen；被 import 时只导出 app（方便测试）。
  * ---------------------------------------------------------------------------
  */
 
+import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import express from 'express';
 
@@ -129,8 +131,8 @@ if (typeof rateSweeper.unref === 'function') rateSweeper.unref();
 
 if (RATE_LIMIT.enabled) {
   app.use((req, res, next) => {
-    // 探活接口不计流，免得监控把自己限死
-    if (req.path === '/healthz') {
+    // 探活和调试台页面不计流，免得监控/调试把自己限死
+    if (req.path === '/healthz' || req.path === '/playground') {
       next();
       return;
     }
@@ -667,6 +669,23 @@ app.get('/api/layouts', (req, res) => {
   res.json({ default: DEFAULT_LAYOUT, layouts: listLayouts() });
 });
 
+/** 调试台页面（public/playground.html），首次访问时读一次 */
+const PLAYGROUND_FILE = new URL('../public/playground.html', import.meta.url);
+let playgroundHtml = null;
+
+/**
+ * 参数调试台：左边看效果，右边改参数，底下实时生成请求链接。
+ * 纯静态页面，不需要额外依赖，也不参与限流。
+ */
+app.get('/playground', (req, res) => {
+  try {
+    playgroundHtml ??= readFileSync(PLAYGROUND_FILE, 'utf8');
+    res.set('Cache-Control', 'no-cache').type('html').send(playgroundHtml);
+  } catch (err) {
+    res.status(500).type('text').send(`调试台页面缺失：${err.message}`);
+  }
+});
+
 /** 简单的作业状态接口，便于部署时做健康检查 */
 app.get('/healthz', (req, res) => {
   res.json({
@@ -688,6 +707,7 @@ app.use((req, res) => {
       '/api/themes',
       '/api/layouts',
       '/api/styles',
+      '/playground',
       '/healthz',
     ],
   });

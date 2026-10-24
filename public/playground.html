@@ -1,0 +1,893 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MCstatus · playground</title>
+<style>
+  :root {
+    --bg: #0f0f18;
+    --panel: #17172a;
+    --panel-2: #1e1e36;
+    --panel-3: #262643;
+    --line: #2b2b47;
+    --line-2: #38385c;
+    --text: #e9e9f2;
+    --dim: #9a9ab8;
+    --dimmer: #6d6d92;
+    --accent: #7c6cf0;
+    --ok: #34d17f;
+    --warn: #ffd60a;
+    --err: #ff6b6b;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --r: 12px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.55 system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+    overflow-x: hidden;
+  }
+  .mono { font-family: var(--mono); }
+
+  /* ================= 骨架：顶栏 / 主体 / 底栏 ================= */
+  .app {
+    height: 100dvh;
+    display: grid;
+    /* 关键：显式声明列宽，避免子元素用 min-content 把整页撑宽 */
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+  .app > * { min-width: 0; }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, #16162a, #12121f);
+  }
+  .brand { display: flex; align-items: center; gap: 9px; font-weight: 620; letter-spacing: .2px; white-space: nowrap; }
+  .brand i {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--ok);
+    box-shadow: 0 0 0 4px rgba(52, 209, 127, .14);
+  }
+  .brand .path { color: var(--dimmer); font-family: var(--mono); font-size: 12.5px; font-weight: 400; }
+  .grow { flex: 1; }
+
+  /* 分段控件 */
+  .seg {
+    display: inline-flex;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .seg button {
+    border: 0; background: transparent; color: var(--dim);
+    font: inherit; font-size: 12.5px; font-family: var(--mono);
+    padding: 6px 12px; border-radius: 7px; cursor: pointer;
+    transition: background .15s, color .15s;
+  }
+  .seg button:hover { color: var(--text); }
+  .seg button[aria-pressed="true"] { background: var(--panel-3); color: #fff; box-shadow: inset 0 0 0 1px var(--line-2); }
+
+  .btn {
+    border: 1px solid var(--line);
+    background: var(--panel-2);
+    color: var(--text);
+    font: inherit; font-size: 12.5px;
+    padding: 7px 12px;
+    border-radius: 9px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .15s, border-color .15s, color .15s, transform .06s;
+  }
+  .btn:hover { background: var(--panel-3); border-color: var(--line-2); }
+  .btn:active { transform: translateY(1px); }
+  .btn.primary { background: var(--accent); border-color: transparent; color: #fff; font-weight: 500; }
+  .btn.primary:hover { background: #6f5ce8; }
+  .btn.done { color: var(--ok); border-color: #2c4a3a; }
+
+  /* ================= 主体 ================= */
+  .main > * { min-width: 0; }
+  .main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 380px;
+    gap: 14px;
+    padding: 14px 18px;
+    min-height: 0;
+  }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    min-height: 0;
+  }
+
+  /* ---------- 左：舞台 ---------- */
+  .stage-card {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    overflow: hidden;
+  }
+  .stage-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+    flex-wrap: wrap;
+  }
+  .pill {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1;
+    padding: 6px 9px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--panel-2);
+    color: var(--dim);
+    white-space: nowrap;
+  }
+  .pill.ok { color: var(--ok); border-color: #274537; background: #16281f; }
+  .pill.warn { color: var(--warn); border-color: #47401f; background: #272314; }
+  .pill.err { color: var(--err); border-color: #4a2727; background: #2a1616; }
+
+  .stage {
+    position: relative;
+    min-height: 0;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    background:
+      radial-gradient(circle at 1px 1px, #ffffff0a 1px, transparent 0) 0 0 / 18px 18px,
+      #0b0b13;
+    overflow: hidden;
+  }
+  .stage img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 10px;
+    box-shadow: 0 18px 50px -18px #000, 0 0 0 1px #ffffff10;
+  }
+  .stage .msg {
+    color: var(--dimmer);
+    font-size: 13px;
+    text-align: center;
+    padding: 24px;
+    max-width: 70ch;
+  }
+  .stage .jsonbox {
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: #c9c6f5;
+    text-align: left;
+    width: 100%;
+    max-height: 100%;
+    overflow: auto;
+    padding: 4px 6px;
+  }
+  .spinner {
+    position: absolute;
+    inset: 0;
+    display: none;
+    place-items: center;
+    background: #0b0b1377;
+    backdrop-filter: blur(1.5px);
+  }
+  .spinner.on { display: grid; }
+  .spinner i {
+    width: 24px; height: 24px; border-radius: 50%;
+    border: 2px solid #ffffff1f;
+    border-top-color: var(--accent);
+    animation: spin .72s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .meta {
+    display: flex;
+    gap: 0;
+    border-top: 1px solid var(--line);
+    flex-wrap: wrap;
+  }
+  .meta div {
+    padding: 8px 12px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--dimmer);
+    border-right: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  .meta div:last-child { border-right: 0; }
+  .meta b { color: #cfcdea; font-weight: 500; margin-left: 6px; }
+
+  /* ---------- 右：控制台 ---------- */
+  .side {
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 4px 4px 16px 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-2) transparent;
+  }
+  .side::-webkit-scrollbar { width: 8px; }
+  .side::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 4px; }
+  .side::-webkit-scrollbar-track { background: transparent; }
+
+  .group {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    padding: 12px 13px 14px;
+    margin-left: 4px;
+    margin-bottom: 10px;
+  }
+  .group > h2 {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--dimmer);
+    margin: 0 0 11px;
+    font-weight: 600;
+  }
+  .group > h2::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--line), transparent);
+  }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+  .grid2 + .grid2 { margin-top: 9px; }
+  .field { min-width: 0; display: grid; gap: 4px; }
+  .field > label {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 6px;
+    font-size: 11.5px; color: var(--dim);
+  }
+  .field > label code { color: var(--dimmer); font-family: var(--mono); font-size: 10.5px; }
+  input[type="text"], input[type="number"], select, textarea {
+    width: 100%;
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 8px 10px;
+    font: inherit;
+    font-size: 13px;
+    outline: none;
+    transition: border-color .15s, box-shadow .15s, background .15s;
+  }
+  input::placeholder, textarea::placeholder { color: #4f4f70; }
+  input:hover, select:hover, textarea:hover { border-color: var(--line-2); }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--accent);
+    background: #22223c;
+    box-shadow: 0 0 0 3px rgba(124, 108, 240, .15);
+  }
+  select {
+    appearance: none;
+    background-image:
+      linear-gradient(45deg, transparent 50%, var(--dim) 50%),
+      linear-gradient(135deg, var(--dim) 50%, transparent 50%);
+    background-position: calc(100% - 15px) 52%, calc(100% - 10px) 52%;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    padding-right: 26px;
+    cursor: pointer;
+  }
+  textarea { font-family: var(--mono); font-size: 12px; resize: vertical; min-height: 62px; line-height: 1.6; }
+
+  /* 主题色卡 */
+  .themes { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+  .theme-btn {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 9px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+    color: var(--dim);
+    font-size: 12px;
+    transition: border-color .15s, background .15s, color .15s;
+    min-width: 0;
+  }
+  .theme-btn:hover { border-color: var(--line-2); color: var(--text); }
+  .theme-btn[aria-pressed="true"] {
+    border-color: var(--accent);
+    background: #24213f;
+    color: #fff;
+    box-shadow: 0 0 0 2px rgba(124, 108, 240, .2);
+  }
+  .sw { display: inline-flex; gap: 2px; flex: none; }
+  .sw span { width: 8px; height: 15px; border-radius: 2px; }
+  .theme-btn .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); font-size: 11.5px; }
+
+  /* 胶囊单选 */
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    padding: 5px 11px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--dim);
+    font: inherit; font-size: 12px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .chip:hover { border-color: var(--line-2); color: var(--text); }
+  .chip[aria-pressed="true"] { background: var(--accent); border-color: transparent; color: #fff; }
+
+  .note { font-size: 11.5px; color: var(--dimmer); margin-top: 8px; line-height: 1.5; }
+  .note code { font-family: var(--mono); color: #a9a4e8; }
+
+  .switch { display: flex; align-items: center; gap: 9px; cursor: pointer; user-select: none; font-size: 13px; }
+  .switch + .switch { margin-top: 11px; }
+  .switch input {
+    appearance: none;
+    width: 34px; height: 19px; flex: none;
+    border-radius: 999px;
+    background: var(--panel-3);
+    border: 1px solid var(--line-2);
+    position: relative;
+    cursor: pointer;
+    transition: background .18s, border-color .18s;
+  }
+  .switch input::after {
+    content: "";
+    position: absolute; top: 2px; left: 2px;
+    width: 13px; height: 13px; border-radius: 50%;
+    background: #8b8bb0;
+    transition: transform .18s, background .18s;
+  }
+  .switch input:checked { background: var(--accent); border-color: transparent; }
+  .switch input:checked::after { transform: translateX(15px); background: #fff; }
+  .switch .lbl { display: grid; gap: 1px; }
+  .switch .lbl small { color: var(--dimmer); font-family: var(--mono); font-size: 10.5px; }
+
+  /* ================= 底栏：实时链接 ================= */
+  .dock {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 11px 18px;
+    border-top: 1px solid var(--line);
+    background: linear-gradient(0deg, #14142a, #121220);
+  }
+  .dock .url {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #0c0c16;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 9px 12px;
+    overflow: hidden;
+  }
+  .dock .url .verb {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .06em;
+    color: var(--accent); background: #241f45; border: 1px solid #372f66;
+    padding: 2px 6px; border-radius: 5px; flex: none;
+  }
+  .dock code {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: #cdc8ff;
+    white-space: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .dock code::-webkit-scrollbar { display: none; }
+  .dock code .q { color: #8f87d8; }
+  .dock code .amp { color: var(--dimmer); }
+
+  @media (max-width: 940px) {
+    body { overflow: auto; overflow-x: hidden; }
+    .topbar { padding: 10px 12px; }
+    .brand .path { display: none; }
+    .seg { flex: 1 1 100%; min-width: 0; order: 3; }
+    .seg button { padding: 6px 8px; font-size: 11.5px; flex: 1; }
+    .main { padding: 12px; gap: 12px; }
+    .group { padding: 11px 12px 13px; }
+    .stage { padding: 10px; }
+    .meta div { padding: 7px 10px; font-size: 11px; }
+    .dock { padding: 10px 12px; }
+    .app { height: auto; min-height: 100dvh; }
+    .main { grid-template-columns: minmax(0, 1fr); }
+    .stage { min-height: 46vw; }
+    .side { overflow: visible; padding-right: 0; }
+    .group { margin-left: 0; }
+    .dock { flex-wrap: wrap; }
+    .dock .url { flex-basis: 100%; }
+    .themes { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 430px) {
+    .grid2 { grid-template-columns: 1fr; }
+    .themes { grid-template-columns: 1fr; }
+  }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ===== 顶栏 ===== -->
+  <header class="topbar">
+    <div class="brand"><i></i>MCstatus<span class="path">/playground</span></div>
+    <div class="seg" id="endpointSeg">
+      <button type="button" data-ep="banner" aria-pressed="true">banner.png</button>
+      <button type="button" data-ep="status" aria-pressed="false">status</button>
+      <button type="button" data-ep="overview" aria-pressed="false">overview.png</button>
+    </div>
+    <div class="grow"></div>
+    <button class="btn" id="refreshBtn" type="button">重新请求</button>
+  </header>
+
+  <!-- ===== 主体 ===== -->
+  <main class="main">
+
+    <!-- 左：预览 -->
+    <section class="card stage-card">
+      <div class="stage-head">
+        <span class="pill" id="statusPill">待请求</span>
+        <span class="pill" id="sizePill">—</span>
+        <span class="pill" id="ratePill">额度 —</span>
+        <span class="grow"></span>
+      </div>
+      <div class="stage" id="stage">
+        <div class="msg" id="empty">改一下右边的参数，这里就会出图</div>
+        <img id="previewImg" alt="预览" class="hidden" />
+        <pre class="jsonbox hidden" id="errBox"></pre>
+        <div class="spinner" id="spinner"><i></i></div>
+      </div>
+      <div class="meta">
+        <div>耗时<b id="mTime">—</b></div>
+        <div>尺寸<b id="mSize">—</b></div>
+        <div>X-Query-Status<b id="mQuery">—</b></div>
+        <div>Content-Type<b id="mType">—</b></div>
+      </div>
+    </section>
+
+    <!-- 右：控制台 -->
+    <aside class="side">
+
+      <div class="group">
+        <h2>服务器</h2>
+        <div class="grid2" id="singleFields">
+          <div class="field">
+            <label>host <code>?host=</code></label>
+            <input type="text" id="host" value="127.0.0.1" spellcheck="false" />
+          </div>
+          <div class="field">
+            <label>port <code>?port=</code></label>
+            <input type="number" id="port" value="25565" min="1" max="65535" />
+          </div>
+          <div class="field">
+            <label>queryPort <code>?queryPort=</code></label>
+            <input type="number" id="queryPort" placeholder="同 port" min="1" max="65535" />
+          </div>
+          <div class="field">
+            <label>显示名 <code>?name=</code></label>
+            <input type="text" id="name" placeholder="覆盖标题" />
+          </div>
+        </div>
+        <div class="field hidden" id="serversField">
+          <label>servers <code>?servers=</code></label>
+          <textarea id="servers" spellcheck="false" placeholder="mc.example.com:25565:25566, play.example.com:25565"></textarea>
+          <div class="note">逗号分隔，最多 8 台 · 条目格式 <code>[显示名@]host[:port[:queryPort]]</code></div>
+        </div>
+        <div class="grid2" style="margin-top:9px">
+          <div class="field">
+            <label>timeout <code>?timeout=</code></label>
+            <select id="timeout">
+              <option value="">默认 5000ms</option>
+              <option value="500">500ms</option>
+              <option value="1000">1000ms</option>
+              <option value="2000">2000ms</option>
+              <option value="3000">3000ms</option>
+              <option value="5000">5000ms</option>
+              <option value="8000">8000ms</option>
+              <option value="10000">10000ms</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>scale <code>?scale=</code></label>
+            <select id="scale">
+              <option value="1">1× · 800×400</option>
+              <option value="2" selected>2× · 1600×800</option>
+              <option value="3">3× · 2400×1200</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="group">
+        <h2>主题</h2>
+        <div class="themes" id="themeGrid"><span class="note">加载中…</span></div>
+        <select id="theme" class="hidden"><option value="">跟随服务端默认</option></select>
+        <div class="note" id="pairHint">主题自带的布局 / 视觉语言会作为默认值</div>
+      </div>
+
+      <div class="group">
+        <h2>版式</h2>
+        <div class="chips" id="layoutChips"></div>
+        <select id="layout" class="hidden"><option value="">跟随主题</option></select>
+        <div style="height:12px"></div>
+        <h2 style="margin-bottom:9px">视觉语言</h2>
+        <div class="chips" id="styleChips"></div>
+        <select id="style" class="hidden"><option value="">跟随主题</option></select>
+      </div>
+
+      <div class="group">
+        <h2>运行</h2>
+        <label class="switch">
+          <input type="checkbox" id="autoRun" checked />
+          <span class="lbl">改参数自动请求<small>关掉就只能点「重新请求」</small></span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="refresh" />
+          <span class="lbl">跳过缓存<small>?refresh=1</small></span>
+        </label>
+      </div>
+
+    </aside>
+  </main>
+
+  <!-- ===== 底栏 ===== -->
+  <footer class="dock">
+    <div class="url">
+      <span class="verb">GET</span>
+      <code id="urlText">—</code>
+    </div>
+    <button class="btn primary" id="copyBtn" type="button">复制链接</button>
+    <button class="btn" id="openBtn" type="button">打开</button>
+    <button class="btn" id="curlBtn" type="button">curl</button>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const el = {
+    epSeg: $('endpointSeg'),
+    host: $('host'), port: $('port'), queryPort: $('queryPort'), name: $('name'),
+    servers: $('servers'), serversField: $('serversField'), singleFields: $('singleFields'),
+    timeout: $('timeout'), scale: $('scale'),
+    theme: $('theme'), themeGrid: $('themeGrid'), pairHint: $('pairHint'),
+    layout: $('layout'), layoutChips: $('layoutChips'),
+    style: $('style'), styleChips: $('styleChips'),
+    refresh: $('refresh'), autoRun: $('autoRun'), refreshBtn: $('refreshBtn'),
+    stage: $('stage'), img: $('previewImg'), empty: $('empty'), errBox: $('errBox'), spinner: $('spinner'),
+    statusPill: $('statusPill'), sizePill: $('sizePill'), ratePill: $('ratePill'),
+    mTime: $('mTime'), mSize: $('mSize'), mQuery: $('mQuery'), mType: $('mType'),
+    urlText: $('urlText'), copyBtn: $('copyBtn'), openBtn: $('openBtn'), curlBtn: $('curlBtn')
+  };
+
+  const PATHS = { banner: '/api/banner.png', status: '/api/status', overview: '/api/overview.png' };
+  const state = { endpoint: 'banner', themes: [] };
+
+  /* ------------------------- 选项：主题 / 版式 / 语言 ------------------------- */
+  async function loadOptions() {
+    let themesRes = { themes: [], default: 'default' };
+    let layoutsRes = { layouts: [] };
+    let stylesRes = { styles: [] };
+    try {
+      [themesRes, layoutsRes, stylesRes] = await Promise.all([
+        fetch('/api/themes').then((r) => r.json()),
+        fetch('/api/layouts').then((r) => r.json()),
+        fetch('/api/styles').then((r) => r.json())
+      ]);
+    } catch {
+      el.themeGrid.innerHTML = '<span class="note">列表加载失败，检查服务是否在跑</span>';
+      return;
+    }
+
+    state.themes = themesRes.themes || [];
+
+    // 隐藏的 select 用来存值，界面用色卡
+    el.theme.innerHTML = '<option value="">跟随服务端默认</option>';
+    el.themeGrid.innerHTML = '';
+    const dup = document.createElement('option');
+    dup.value = '';
+    const dupBtn = makeThemeButton({ name: '', label: `跟随默认（${themesRes.default}）`, colors: null }, '跟随默认');
+    el.themeGrid.appendChild(dupBtn);
+    el.theme.appendChild(dup);
+
+    state.themes.forEach((t) => {
+      const opt = document.createElement('option');
+      opt.value = t.name;
+      opt.textContent = t.label;
+      el.theme.appendChild(opt);
+      el.themeGrid.appendChild(makeThemeButton(t));
+    });
+
+    fillChips(el.layoutChips, el.layout, layoutsRes.layouts || [], '跟随主题');
+    fillChips(el.styleChips, el.style, stylesRes.styles || [], '跟随主题');
+  }
+
+  function makeThemeButton(theme, text) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'theme-btn';
+    btn.dataset.value = theme.name;
+    btn.setAttribute('aria-pressed', 'false');
+    const sw = document.createElement('span');
+    sw.className = 'sw';
+    const c = theme.colors;
+    const colors = c ? [c.background, c.accent, c.online, c.warning] : ['#2b2b47', '#3a3a5c', '#3a3a5c', '#3a3a5c'];
+    colors.forEach((color) => {
+      const s = document.createElement('span');
+      s.style.background = color;
+      sw.appendChild(s);
+    });
+    const nm = document.createElement('span');
+    nm.className = 'nm';
+    nm.textContent = text ?? theme.name;
+    nm.title = theme.label || theme.name;
+    btn.append(sw, nm);
+    btn.addEventListener('click', () => {
+      el.theme.value = theme.name;
+      syncTheme();
+      schedule();
+    });
+    return btn;
+  }
+
+  function fillChips(host, select, items, fallbackLabel) {
+    host.innerHTML = '';
+    const add = (value, label) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip';
+      b.dataset.value = value;
+      b.textContent = label;
+      b.setAttribute('aria-pressed', 'false');
+      b.addEventListener('click', () => {
+        select.value = value;
+        syncChips(host, select);
+        schedule();
+      });
+      host.appendChild(b);
+    };
+    add('', fallbackLabel);
+    // 把 "name · 说明" 拆开，这里只留短名
+    items.forEach((it) => add(it.name, it.name));
+  }
+
+  function syncChips(host, select) {
+    [...host.children].forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.value === select.value)));
+  }
+
+  function syncTheme() {
+    [...el.themeGrid.children].forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.value === el.theme.value)));
+    const t = state.themes.find((x) => x.name === el.theme.value);
+    el.pairHint.innerHTML = t
+      ? `自带 <code>layout=${t.layout}</code> · <code>style=${t.style}</code>（${t.styleLabel || t.style}）${t.mode === 'light' ? ' · 浅色' : ''}`
+      : '主题自带的布局 / 视觉语言会作为默认值';
+  }
+
+  /* ------------------------------ 组装参数 ------------------------------ */
+  function buildQuery() {
+    const p = new URLSearchParams();
+    if (state.endpoint === 'overview') {
+      const s = el.servers.value.trim();
+      if (s) p.set('servers', s);
+    } else {
+      const host = el.host.value.trim();
+      if (host) p.set('host', host);
+      if (el.port.value) p.set('port', el.port.value);
+      if (el.queryPort.value) p.set('queryPort', el.queryPort.value);
+      if (el.name.value.trim()) p.set('name', el.name.value.trim());
+    }
+    if (el.timeout.value) p.set('timeout', el.timeout.value);
+    if (el.scale.value) p.set('scale', el.scale.value);
+    if (el.theme.value) p.set('theme', el.theme.value);
+    if (el.layout.value) p.set('layout', el.layout.value);
+    if (el.style.value) p.set('style', el.style.value);
+    if (el.refresh.checked) p.set('refresh', '1');
+    return p;
+  }
+
+  function buildUrl() {
+    const q = buildQuery().toString();
+    return location.origin + PATHS[state.endpoint] + (q ? `?${q}` : '');
+  }
+
+  function renderUrl() {
+    const url = buildUrl();
+    const idx = url.indexOf('?');
+    const base = idx === -1 ? url : url.slice(0, idx);
+    const qs = idx === -1 ? '' : url.slice(idx + 1);
+    const pretty = qs
+      ? qs.split('&').map(escapeHtml).join('<span class="amp"> &amp; </span>')
+      : '';
+    el.urlText.innerHTML = escapeHtml(base) + (pretty ? `<span class="q">?</span>${pretty}` : '');
+    el.urlText.title = url;
+    return url;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  /* -------------------------------- 预览 -------------------------------- */
+  let seq = 0;
+  let objectUrl = null;
+
+  function setPill(node, text, kind) {
+    node.textContent = text;
+    node.className = 'pill' + (kind ? ' ' + kind : '');
+  }
+
+  async function runPreview() {
+    const url = renderUrl();
+    const mySeq = ++seq;
+    const t0 = performance.now();
+    el.spinner.classList.add('on');
+    setPill(el.statusPill, '请求中…');
+
+    try {
+      const res = await fetch(url, { cache: 'no-store' });
+      if (mySeq !== seq) return;
+
+      el.mTime.textContent = Math.round(performance.now() - t0) + 'ms';
+      el.mQuery.textContent = res.headers.get('X-Query-Status') || '—';
+      el.mType.textContent = (res.headers.get('Content-Type') || '—').split(';')[0];
+
+      const remain = res.headers.get('RateLimit-Remaining');
+      const limit = res.headers.get('RateLimit-Limit');
+      if (remain !== null) setPill(el.ratePill, `额度 ${remain}/${limit}`, Number(remain) <= 0 ? 'warn' : '');
+      else setPill(el.ratePill, '额度 —');
+
+      const isImage = (res.headers.get('Content-Type') || '').includes('image/');
+
+      if (isImage) {
+        const blob = await res.blob();
+        if (mySeq !== seq) return;
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+        objectUrl = URL.createObjectURL(blob);
+        el.img.src = objectUrl;
+        el.img.classList.remove('hidden');
+        el.empty.classList.add('hidden');
+        el.errBox.classList.add('hidden');
+        setPill(el.sizePill, `${res.status} · ${(blob.size / 1024).toFixed(0)} KB`, res.ok ? 'ok' : res.status === 429 ? 'warn' : 'err');
+        setPill(el.statusPill, res.ok ? '出图成功' : res.status === 429 ? '被限流' : '出图异常', res.ok ? 'ok' : res.status === 429 ? 'warn' : 'err');
+      } else {
+        const text = await res.text();
+        if (mySeq !== seq) return;
+        el.img.classList.add('hidden');
+        el.empty.classList.add('hidden');
+        el.errBox.classList.remove('hidden');
+        el.errBox.textContent = prettyJson(text);
+        setPill(el.sizePill, `${res.status} · ${text.length} B`, res.ok ? 'ok' : 'err');
+        setPill(el.statusPill, res.ok ? 'JSON' : String(res.status), res.ok ? 'ok' : 'err');
+      }
+    } catch (err) {
+      if (mySeq !== seq) return;
+      el.img.classList.add('hidden');
+      el.empty.classList.add('hidden');
+      el.errBox.classList.remove('hidden');
+      el.errBox.textContent = '请求失败：' + err.message;
+      setPill(el.statusPill, '请求失败', 'err');
+    } finally {
+      if (mySeq === seq) el.spinner.classList.remove('on');
+    }
+  }
+
+  el.img.addEventListener('load', () => {
+    const s = el.scale.value ? Number(el.scale.value) : 1;
+    el.mSize.textContent = `${el.img.naturalWidth}×${el.img.naturalHeight}（${s}×）`;
+  });
+
+  function prettyJson(text) {
+    try { return JSON.stringify(JSON.parse(text), null, 2); } catch { return text; }
+  }
+
+  /* -------------------------------- 事件 -------------------------------- */
+  let timer = null;
+  function schedule(immediate) {
+    renderUrl();
+    if (!el.autoRun.checked) return;
+    clearTimeout(timer);
+    timer = setTimeout(runPreview, immediate ? 0 : 340);
+  }
+
+  function setEndpoint(ep) {
+    state.endpoint = ep;
+    [...el.epSeg.children].forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.ep === ep)));
+    const overview = ep === 'overview';
+    el.serversField.classList.toggle('hidden', !overview);
+    el.singleFields.classList.toggle('hidden', overview);
+    schedule(true);
+  }
+
+  el.epSeg.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-ep]');
+    if (btn) setEndpoint(btn.dataset.ep);
+  });
+
+  [el.host, el.port, el.queryPort, el.name, el.servers, el.timeout, el.scale, el.refresh].forEach((node) => {
+    node.addEventListener('input', () => schedule());
+    node.addEventListener('change', () => schedule());
+  });
+
+  el.refreshBtn.addEventListener('click', () => schedule(true));
+  el.autoRun.addEventListener('change', () => { if (el.autoRun.checked) schedule(true); });
+
+  async function copy(text, btn) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+    const old = btn.textContent;
+    btn.textContent = '已复制';
+    btn.classList.add('done');
+    setTimeout(() => { btn.textContent = old; btn.classList.remove('done'); }, 1100);
+  }
+
+  el.copyBtn.addEventListener('click', () => copy(buildUrl(), el.copyBtn));
+  el.openBtn.addEventListener('click', () => window.open(buildUrl(), '_blank', 'noopener'));
+  el.curlBtn.addEventListener('click', () => {
+    const img = PATHS[state.endpoint].endsWith('.png');
+    copy(img ? `curl -o out.png "${buildUrl()}"` : `curl "${buildUrl()}"`, el.curlBtn);
+  });
+
+  /* -------------------------------- 启动 -------------------------------- */
+  function applyFromLocation() {
+    const q = new URLSearchParams(location.search);
+    const put = (node, key) => { const v = q.get(key); if (v !== null) node.value = v; };
+    put(el.host, 'host');
+    put(el.port, 'port');
+    put(el.queryPort, 'queryPort');
+    put(el.name, 'name');
+    put(el.timeout, 'timeout');
+    put(el.scale, 'scale');
+    put(el.theme, 'theme');
+    put(el.layout, 'layout');
+    put(el.style, 'style');
+    el.refresh.checked = q.get('refresh') === '1';
+    if (q.has('servers')) el.servers.value = q.get('servers');
+    syncTheme();
+    syncChips(el.layoutChips, el.layout);
+    syncChips(el.styleChips, el.style);
+
+    const ep = q.get('endpoint');
+    if (ep === 'overview' || q.has('servers')) return 'overview';
+    if (ep === 'status') return 'status';
+    return 'banner';
+  }
+
+  (async () => {
+    await loadOptions();
+    setEndpoint(applyFromLocation());
+  })();
+})();
+</script>
+</body>
+</html>
