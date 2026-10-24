@@ -113,6 +113,8 @@ curl -o list.png "http://localhost:3000/api/overview.png?servers=主服@a.exampl
 - **[koishi-plugin-mcstatus](https://github.com/yunxineko/koishi-plugin-mcstatus)** —— Koishi 插件。关键词、匹配方式和全部请求参数都在 Koishi 控制台里以表单配置；也能直接加载 NapCat 版那份 `rules.json`，两种客户端可以共用同一份规则。
 - **[napcat-plugin-mcstatus](https://github.com/yunxineko/napcat-plugin-mcstatus)** —— NapCat 插件（v4.18.5 及更早）或独立 OneBot 11 客户端（`node client.mjs`，不受 v4.18.11 起插件白名单的影响）。规则写在带注释的 `rules.json` 里，改完保存热加载。
 
+详细步骤见 [docs/CLIENTS.zh.md](docs/CLIENTS.zh.md)。
+
 ## 部署
 
 ```bash
