@@ -116,6 +116,8 @@ Ready-made QQ bot integrations — send a keyword in a group or private chat, th
 - **[koishi-plugin-mcstatus](https://github.com/yunxineko/koishi-plugin-mcstatus)** — Koishi plugin. Keyword, match mode and every request parameter are edited as forms in the Koishi console; it can also load the NapCat version's `rules.json` directly, so both clients can share one rule file.
 - **[napcat-plugin-mcstatus](https://github.com/yunxineko/napcat-plugin-mcstatus)** — NapCat plugin (v4.18.5 and earlier) or a standalone OneBot 11 client (`node client.mjs`, unaffected by the plugin whitelist introduced in v4.18.11). Rules live in a commented, hot-reloaded `rules.json`.
 
+Full setup guide: [docs/CLIENTS.md](docs/CLIENTS.md)
+
 ## Deployment
 
 ```bash
