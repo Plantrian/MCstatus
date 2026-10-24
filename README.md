@@ -130,8 +130,17 @@ The Query lookup in this project does **not** resolve SRV records; it uses the `
 | `GET /api/layouts` | JSON | Available layouts |
 | `GET /api/styles` | JSON | Available visual styles |
 | `GET /healthz` | JSON | Health check (uptime + cache stats) |
+| `GET /playground` | HTML | Parameter playground: live preview on the left, every option on the right, request URL at the bottom |
 
 Every endpoint allows CORS (`Access-Control-Allow-Origin: *`) and answers `OPTIONS` with 204. Request logging is on by default; turn it off with `LOG_REQUESTS=off`.
+
+### `GET /playground` (parameter playground)
+
+A zero-dependency static page for dialling in parameters: the rendered image on the left, every option (`host` / `port` / `queryPort` / `name` / `timeout` / `scale` / `theme` / `layout` / `style` / `refresh`) on the right, and the request URL updating live at the bottom with one-click copy, open-in-new-tab and a ready-made `curl`.
+
+- Switches between `/api/banner.png`, `/api/status` and `/api/overview.png`
+- Repopulates itself from the page URL, so `?host=…&theme=midnight` is a shareable debug state
+- Not subject to rate limiting, so you never lock yourself out while testing
 
 ### `GET /api/status`
 

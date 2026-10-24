@@ -1,0 +1,631 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MCstatus · 参数调试台</title>
+<style>
+  :root {
+    --bg: #12121c;
+    --panel: #1a1a2e;
+    --panel-2: #20203a;
+    --line: #2c2c46;
+    --text: #e8e8f0;
+    --muted: #8b8ba7;
+    --accent: #7c6cf0;
+    --accent-2: #30d158;
+    --warn: #ffd60a;
+    --err: #ff6b6b;
+    --radius: 10px;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px 20px 140px;
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr);
+    gap: 20px;
+    align-items: start;
+  }
+  header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  header h1 { font-size: 17px; margin: 0; font-weight: 650; letter-spacing: .3px; }
+  header .sub { color: var(--muted); font-size: 12.5px; }
+  header .sub code { font-family: var(--mono); color: #b9b3ff; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+  }
+
+  /* ---------------- 左：预览 ---------------- */
+  .preview { padding: 14px; position: sticky; top: 16px; }
+  .preview-head {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 12px; flex-wrap: wrap;
+  }
+  .pill {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    background: var(--panel-2);
+  }
+  .pill.ok { color: var(--accent-2); border-color: #2a4a35; }
+  .pill.warn { color: var(--warn); border-color: #4a4320; }
+  .pill.err { color: var(--err); border-color: #4a2525; }
+  .stage {
+    position: relative;
+    border-radius: 8px;
+    background: #0d0d15;
+    border: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 260px;
+    overflow: hidden;
+  }
+  .stage img { display: block; width: 100%; height: auto; }
+  .stage .empty { color: var(--muted); font-size: 13px; padding: 40px 20px; text-align: center; }
+  .stage .errbox {
+    font-family: var(--mono); font-size: 12px; color: #ffb3b3;
+    padding: 18px; white-space: pre-wrap; word-break: break-word; width: 100%;
+  }
+  .spinner {
+    position: absolute; inset: 0;
+    display: none;
+    align-items: center; justify-content: center;
+    background: rgba(13, 13, 21, .55);
+    backdrop-filter: blur(1px);
+  }
+  .spinner.on { display: flex; }
+  .spinner i {
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 2px solid #ffffff22; border-top-color: var(--accent);
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .meta {
+    margin-top: 10px;
+    display: flex; gap: 14px; flex-wrap: wrap;
+    font-family: var(--mono); font-size: 11.5px; color: var(--muted);
+  }
+  .meta b { color: #cfcfee; font-weight: 500; }
+
+  /* ---------------- 右：面板 ---------------- */
+  .panel { padding: 14px 14px 18px; }
+  .section + .section { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+  .section h2 {
+    font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--muted); margin: 0 0 10px; font-weight: 600;
+  }
+  .row { display: grid; gap: 10px; }
+  .row.two { grid-template-columns: 1fr 1fr; }
+  .row.three { grid-template-columns: 1fr 1fr 1fr; }
+  .field { display: grid; gap: 5px; min-width: 0; }
+  .field label { font-size: 12px; color: var(--muted); }
+  .field label span { color: #5f5f80; font-family: var(--mono); font-size: 11px; }
+  input[type="text"], input[type="number"], select, textarea {
+    width: 100%;
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font: inherit;
+    font-size: 13px;
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  textarea { font-family: var(--mono); font-size: 12px; resize: vertical; min-height: 64px; }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(124, 108, 240, .16);
+  }
+  select { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 15px) 50%, calc(100% - 10px) 50%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; padding-right: 26px; }
+  .seg { display: flex; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 3px; gap: 3px; }
+  .seg button {
+    flex: 1; border: 0; background: transparent; color: var(--muted);
+    padding: 7px 6px; border-radius: 6px; font: inherit; font-size: 12.5px;
+    cursor: pointer; transition: background .15s, color .15s;
+    font-family: var(--mono);
+  }
+  .seg button[aria-pressed="true"] { background: #33335c; color: #fff; }
+  .check { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text); cursor: pointer; user-select: none; }
+  .check input { accent-color: var(--accent); width: 15px; height: 15px; }
+  .hint { font-size: 11.5px; color: #62628a; margin-top: 2px; }
+
+  .hidden { display: none !important; }
+
+  /* ---------------- 底部链接条 ---------------- */
+  .urlbar {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    background: rgba(18, 18, 28, .92);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid var(--line);
+    padding: 12px 20px;
+    z-index: 20;
+  }
+  .urlbar-inner { max-width: 1400px; margin: 0 auto; display: grid; gap: 8px; }
+  .urlbar .line { display: flex; gap: 8px; align-items: stretch; }
+  .urlbar code {
+    flex: 1; min-width: 0;
+    font-family: var(--mono); font-size: 12px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 9px 11px;
+    overflow-x: auto; white-space: nowrap;
+    color: #c8c3ff;
+  }
+  .urlbar code .k { color: var(--muted); }
+  .btn {
+    border: 1px solid var(--line);
+    background: var(--panel-2);
+    color: var(--text);
+    padding: 0 12px;
+    border-radius: 8px;
+    font: inherit; font-size: 12.5px;
+    cursor: pointer; white-space: nowrap;
+    transition: background .15s, border-color .15s, transform .05s;
+  }
+  .btn:hover { background: #2a2a48; border-color: #3a3a5c; }
+  .btn:active { transform: translateY(1px); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: #6d5ce6; }
+  .btn.done { border-color: #2a4a35; color: var(--accent-2); }
+
+  @media (max-width: 900px) {
+    .wrap { grid-template-columns: 1fr; padding-bottom: 200px; }
+    .preview { position: static; }
+    .row.two, .row.three { grid-template-columns: 1fr 1fr; }
+    .urlbar { padding: 10px 12px; }
+    .urlbar .line { flex-wrap: wrap; }
+    .urlbar code { flex-basis: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>MCstatus · 参数调试台</h1>
+    <span class="sub">左边看效果，右边改参数，底下就是<b>实时链接</b> —— 接口：<code>/playground</code></span>
+  </header>
+
+  <!-- 左：预览 -->
+  <section class="card preview">
+    <div class="preview-head">
+      <span class="pill" id="statusPill">待请求</span>
+      <span class="pill" id="sizePill">—</span>
+      <span class="pill" id="ratePill">限流 —</span>
+      <span style="flex:1"></span>
+      <button class="btn" id="refreshBtn" type="button">刷新预览</button>
+    </div>
+    <div class="stage" id="stage">
+      <div class="empty" id="empty">参数改一下就会自动出图</div>
+      <img id="previewImg" alt="预览" class="hidden" />
+      <div class="errbox hidden" id="errBox"></div>
+      <div class="spinner" id="spinner"><i></i></div>
+    </div>
+    <div class="meta">
+      <span>耗时 <b id="timeMeta">—</b></span>
+      <span>X-Query-Status <b id="qsMeta">—</b></span>
+      <span>Content-Type <b id="ctMeta">—</b></span>
+    </div>
+  </section>
+
+  <!-- 右：控制面板 -->
+  <section class="card panel">
+    <div class="section">
+      <h2>接口</h2>
+      <div class="seg" id="endpointSeg">
+        <button type="button" data-ep="banner" aria-pressed="true">/api/banner.png</button>
+        <button type="button" data-ep="status" aria-pressed="false">/api/status</button>
+        <button type="button" data-ep="overview" aria-pressed="false">/api/overview.png</button>
+      </div>
+      <div class="hint" id="epHint">单台服务器状态图</div>
+    </div>
+
+    <div class="section">
+      <h2>服务器</h2>
+      <div class="row two" id="singleFields">
+        <div class="field">
+          <label>host <span>?host=</span></label>
+          <input type="text" id="host" value="127.0.0.1" spellcheck="false" />
+        </div>
+        <div class="field">
+          <label>port <span>?port=</span></label>
+          <input type="number" id="port" value="25565" min="1" max="65535" />
+        </div>
+        <div class="field">
+          <label>queryPort <span>?queryPort=</span></label>
+          <input type="number" id="queryPort" placeholder="默认同 port" min="1" max="65535" />
+        </div>
+        <div class="field">
+          <label>显示名 <span>?name=</span></label>
+          <input type="text" id="name" placeholder="覆盖标题里的地址" />
+        </div>
+      </div>
+      <div class="field hidden" id="serversField">
+        <label>servers <span>?servers=</span></label>
+        <textarea id="servers" spellcheck="false" placeholder="显示名@host:port:queryPort, host2:port">mc.example.com:25565:25566,play.example.com:25565</textarea>
+        <div class="hint">逗号分隔，最多 8 台；条目格式 [显示名@]host[:port[:queryPort]]</div>
+      </div>
+      <div class="row two" style="margin-top:10px">
+        <div class="field">
+          <label>timeout <span>?timeout=</span></label>
+          <select id="timeout">
+            <option value="">默认（5000ms）</option>
+            <option value="500">500ms</option>
+            <option value="1000">1000ms</option>
+            <option value="2000">2000ms</option>
+            <option value="3000">3000ms</option>
+            <option value="5000">5000ms</option>
+            <option value="8000">8000ms</option>
+            <option value="10000">10000ms</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>scale <span>?scale=</span></label>
+          <select id="scale">
+            <option value="1">1×（800×400）</option>
+            <option value="2" selected>2×（1600×800）</option>
+            <option value="3">3×（2400×1200）</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>外观</h2>
+      <div class="row">
+        <div class="field">
+          <label>主题 <span>?theme=</span></label>
+          <select id="theme"><option value="">加载中…</option></select>
+        </div>
+        <div class="row two">
+          <div class="field">
+            <label>布局 <span>?layout=</span></label>
+            <select id="layout"><option value="">跟随主题</option></select>
+          </div>
+          <div class="field">
+            <label>视觉语言 <span>?style=</span></label>
+            <select id="style"><option value="">跟随主题</option></select>
+          </div>
+        </div>
+        <div class="hint" id="pairHint">主题自带的布局 / 视觉语言会作为默认值</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>其他</h2>
+      <label class="check"><input type="checkbox" id="refresh" /> 跳过缓存 <span style="color:#62628a;font-family:var(--mono);font-size:11px">?refresh=1</span></label>
+      <label class="check" style="margin-top:8px"><input type="checkbox" id="autoRun" checked /> 改参数自动重新请求</label>
+    </div>
+  </section>
+</div>
+
+<!-- 底部：实时链接 -->
+<div class="urlbar">
+  <div class="urlbar-inner">
+    <div class="line">
+      <code id="urlText">—</code>
+      <button class="btn primary" id="copyBtn" type="button">复制链接</button>
+      <button class="btn" id="openBtn" type="button">打开</button>
+      <button class="btn" id="curlBtn" type="button">复制 curl</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const el = {
+    epSeg: $('endpointSeg'), epHint: $('epHint'),
+    host: $('host'), port: $('port'), queryPort: $('queryPort'), name: $('name'),
+    servers: $('servers'), serversField: $('serversField'), singleFields: $('singleFields'),
+    timeout: $('timeout'), scale: $('scale'),
+    theme: $('theme'), layout: $('layout'), style: $('style'), pairHint: $('pairHint'),
+    refresh: $('refresh'), autoRun: $('autoRun'), refreshBtn: $('refreshBtn'),
+    stage: $('stage'), img: $('previewImg'), empty: $('empty'), errBox: $('errBox'), spinner: $('spinner'),
+    statusPill: $('statusPill'), sizePill: $('sizePill'), ratePill: $('ratePill'),
+    timeMeta: $('timeMeta'), qsMeta: $('qsMeta'), ctMeta: $('ctMeta'),
+    urlText: $('urlText'), copyBtn: $('copyBtn'), openBtn: $('openBtn'), curlBtn: $('curlBtn')
+  };
+
+  const PATHS = {
+    banner: '/api/banner.png',
+    status: '/api/status',
+    overview: '/api/overview.png'
+  };
+  const HINTS = {
+    banner: '单台服务器状态图（永远返回一张 PNG）',
+    status: '同样的参数，返回 JSON（不渲染图片）',
+    overview: '多台服务器一览，每行一台，高度自适应'
+  };
+
+  const state = { endpoint: 'banner', themes: [] };
+
+  /* ---------------- 主题 / 布局 / 样式列表 ---------------- */
+  async function loadOptions() {
+    try {
+      const [themesRes, layoutsRes, stylesRes] = await Promise.all([
+        fetch('/api/themes').then((r) => r.json()),
+        fetch('/api/layouts').then((r) => r.json()),
+        fetch('/api/styles').then((r) => r.json())
+      ]);
+      state.themes = themesRes.themes || [];
+      el.theme.innerHTML = '';
+      const def = document.createElement('option');
+      def.value = '';
+      def.textContent = `跟随服务端默认（${themesRes.default}）`;
+      el.theme.appendChild(def);
+      state.themes.forEach((t) => {
+        const opt = document.createElement('option');
+        opt.value = t.name;
+        opt.textContent = `${t.name} — ${t.label}`;
+        opt.dataset.layout = t.layout || '';
+        opt.dataset.style = t.style || '';
+        el.theme.appendChild(opt);
+      });
+
+      el.layout.innerHTML = '<option value="">跟随主题</option>';
+      (layoutsRes.layouts || []).forEach((l) => {
+        const opt = document.createElement('option');
+        opt.value = l.name;
+        opt.textContent = l.label ? `${l.name} — ${l.label}` : l.name;
+        el.layout.appendChild(opt);
+      });
+
+      el.style.innerHTML = '<option value="">跟随主题</option>';
+      (stylesRes.styles || []).forEach((s) => {
+        const opt = document.createElement('option');
+        opt.value = s.name;
+        opt.textContent = s.label ? `${s.name} — ${s.label}` : s.name;
+        el.style.appendChild(opt);
+      });
+    } catch (err) {
+      el.theme.innerHTML = '<option value="">主题列表加载失败</option>';
+    }
+  }
+
+  /* ---------------- 组装查询参数 ---------------- */
+  function buildQuery() {
+    const p = new URLSearchParams();
+    if (state.endpoint === 'overview') {
+      const s = el.servers.value.trim();
+      if (s) p.set('servers', s);
+    } else {
+      const host = el.host.value.trim();
+      if (host) p.set('host', host);
+      if (el.port.value) p.set('port', el.port.value);
+      if (el.queryPort.value) p.set('queryPort', el.queryPort.value);
+      if (el.name.value.trim()) p.set('name', el.name.value.trim());
+    }
+    if (el.timeout.value) p.set('timeout', el.timeout.value);
+    if (el.scale.value) p.set('scale', el.scale.value);
+    if (el.theme.value) p.set('theme', el.theme.value);
+    if (el.layout.value) p.set('layout', el.layout.value);
+    if (el.style.value) p.set('style', el.style.value);
+    if (el.refresh.checked) p.set('refresh', '1');
+    return p;
+  }
+
+  function buildUrl() {
+    const q = buildQuery().toString();
+    return location.origin + PATHS[state.endpoint] + (q ? `?${q}` : '');
+  }
+
+  function renderUrl() {
+    const url = buildUrl();
+    const [base, q] = url.split('?');
+    el.urlText.innerHTML = q
+      ? `${escapeHtml(base)}<span class="k">?</span>${escapeHtml(q)}`
+      : escapeHtml(base);
+    el.urlText.title = url;
+    return url;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  /* ---------------- 预览 ---------------- */
+  let seq = 0;
+  let currentObjectUrl = null;
+
+  function setPill(node, text, kind) {
+    node.textContent = text;
+    node.className = 'pill' + (kind ? ' ' + kind : '');
+  }
+
+  async function runPreview() {
+    const url = renderUrl();
+    const mySeq = ++seq;
+    const started = performance.now();
+
+    el.spinner.classList.add('on');
+    setPill(el.statusPill, '请求中…');
+
+    try {
+      const res = await fetch(url, { cache: 'no-store' });
+      if (mySeq !== seq) return;
+
+      const elapsed = Math.round(performance.now() - started);
+      el.timeMeta.textContent = elapsed + 'ms';
+      el.qsMeta.textContent = res.headers.get('X-Query-Status') || '—';
+      el.ctMeta.textContent = res.headers.get('Content-Type') || '—';
+
+      const remaining = res.headers.get('RateLimit-Remaining');
+      const limit = res.headers.get('RateLimit-Limit');
+      if (remaining !== null) {
+        setPill(el.ratePill, `限流 ${remaining}/${limit}`, Number(remaining) <= 0 ? 'warn' : '');
+      } else {
+        setPill(el.ratePill, '限流 —');
+      }
+
+      const isImage = (res.headers.get('Content-Type') || '').includes('image/');
+
+      if (isImage) {
+        const blob = await res.blob();
+        if (mySeq !== seq) return;
+        if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
+        currentObjectUrl = URL.createObjectURL(blob);
+        el.img.src = currentObjectUrl;
+        el.img.classList.remove('hidden');
+        el.empty.classList.add('hidden');
+        el.errBox.classList.add('hidden');
+        setPill(el.sizePill, `${res.status} · ${(blob.size / 1024).toFixed(0)} KB`);
+        setPill(el.statusPill, res.ok ? 'OK' : res.status === 429 ? '被限流' : '出图异常', res.ok ? 'ok' : res.status === 429 ? 'warn' : 'err');
+      } else {
+        const text = await res.text();
+        if (mySeq !== seq) return;
+        el.img.classList.add('hidden');
+        el.empty.classList.add('hidden');
+        el.errBox.classList.remove('hidden');
+        el.errBox.textContent = 'JSON 响应：\n' + prettyJson(text);
+        setPill(el.sizePill, `${res.status} · ${text.length} B`);
+        setPill(el.statusPill, res.ok ? 'OK' : String(res.status), res.ok ? 'ok' : 'err');
+      }
+    } catch (err) {
+      if (mySeq !== seq) return;
+      el.img.classList.add('hidden');
+      el.empty.classList.add('hidden');
+      el.errBox.classList.remove('hidden');
+      el.errBox.textContent = '请求失败：' + err.message;
+      setPill(el.statusPill, '请求失败', 'err');
+    } finally {
+      if (mySeq === seq) el.spinner.classList.remove('on');
+    }
+  }
+
+  function prettyJson(text) {
+    try { return JSON.stringify(JSON.parse(text), null, 2); } catch { return text; }
+  }
+
+  /* ---------------- 事件 ---------------- */
+  let timer = null;
+  function schedule(immediate) {
+    renderUrl();
+    if (!el.autoRun.checked) return;
+    clearTimeout(timer);
+    timer = setTimeout(runPreview, immediate ? 0 : 350);
+  }
+
+  function setEndpoint(ep) {
+    state.endpoint = ep;
+    [...el.epSeg.children].forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.ep === ep)));
+    el.epHint.textContent = HINTS[ep];
+    const isOverview = ep === 'overview';
+    el.serversField.classList.toggle('hidden', !isOverview);
+    el.singleFields.classList.toggle('hidden', isOverview);
+    schedule(true);
+  }
+
+  el.epSeg.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-ep]');
+    if (btn) setEndpoint(btn.dataset.ep);
+  });
+
+  ['input', 'change'].forEach((evt) => {
+    [el.host, el.port, el.queryPort, el.name, el.servers, el.timeout, el.scale, el.theme, el.layout, el.style, el.refresh].forEach((node) => {
+      node.addEventListener(evt, () => {
+        if (node === el.theme) updatePairHint();
+        schedule();
+      });
+    });
+  });
+
+  function updatePairHint() {
+    const opt = el.theme.selectedOptions[0];
+    const layout = opt && opt.dataset.layout;
+    const style = opt && opt.dataset.style;
+    el.pairHint.textContent = layout || style
+      ? `这套主题自带 layout=${layout || '默认'} / style=${style || '默认'}`
+      : '主题自带的布局 / 视觉语言会作为默认值';
+  }
+
+  el.refreshBtn.addEventListener('click', () => schedule(true));
+  el.autoRun.addEventListener('change', () => { if (el.autoRun.checked) schedule(true); });
+
+  async function copy(text, btn) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+    const old = btn.textContent;
+    btn.textContent = '已复制';
+    btn.classList.add('done');
+    setTimeout(() => { btn.textContent = old; btn.classList.remove('done'); }, 1200);
+  }
+
+  el.copyBtn.addEventListener('click', () => copy(buildUrl(), el.copyBtn));
+  el.openBtn.addEventListener('click', () => window.open(buildUrl(), '_blank', 'noopener'));
+  el.curlBtn.addEventListener('click', () => {
+    const isImage = PATHS[state.endpoint].endsWith('.png');
+    const cmd = isImage
+      ? `curl -o out.png "${buildUrl()}"`
+      : `curl "${buildUrl()}"`;
+    copy(cmd, el.curlBtn);
+  });
+
+  /* ---------------- 启动 ---------------- */
+  // 支持用 /playground?host=…&theme=… 直接把参数填进面板，方便分享某个调试现场
+  function applyFromLocation() {
+    const q = new URLSearchParams(location.search);
+    const put = (node, key) => {
+      const v = q.get(key);
+      if (v !== null) node.value = v;
+    };
+    put(el.host, 'host');
+    put(el.port, 'port');
+    put(el.queryPort, 'queryPort');
+    put(el.name, 'name');
+    put(el.timeout, 'timeout');
+    put(el.scale, 'scale');
+    put(el.theme, 'theme');
+    put(el.layout, 'layout');
+    put(el.style, 'style');
+    el.refresh.checked = q.get('refresh') === '1';
+    if (q.has('servers')) el.servers.value = q.get('servers');
+    updatePairHint();
+
+    const endpoint = q.get('endpoint');
+    if (endpoint === 'overview' || q.has('servers')) return 'overview';
+    if (endpoint === 'status') return 'status';
+    return 'banner';
+  }
+
+  (async () => {
+    await loadOptions();
+    setEndpoint(applyFromLocation());
+  })();
+})();
+</script>
+</body>
+</html>

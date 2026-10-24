@@ -130,6 +130,15 @@ query.port=25566
 | `GET /api/styles` | JSON | 可用视觉语言列表 |
 | `GET /healthz` | JSON | 健康检查（uptime + 缓存统计） |
 
+### `GET /playground`（参数调试台）
+
+零依赖的静态页面，用来拧参数：左边是渲染出来的图，右边是全部选项（`host` / `port` / `queryPort` / `name` / `timeout` / `scale` / `theme` / `layout` / `style` / `refresh`），底下实时生成请求链接，可一键复制、新窗口打开，还能直接拿 `curl`。
+
+- 三个接口都能切：`/api/banner.png`、`/api/status`、`/api/overview.png`
+- 页面会从自身 URL 读回参数，`?host=…&theme=midnight` 就是一个可以分享的调试现场
+- 不参与限流，测试时不会把自己限死
+| `GET /playground` | HTML | 参数调试台：左边预览效果，右边改全部参数，底下实时生成链接 |
+
 全部端点允许 CORS（`Access-Control-Allow-Origin: *`），`OPTIONS` 返回 204。请求日志默认打印，`LOG_REQUESTS=off` 可关。
 
 ### `GET /api/status`
