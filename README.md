@@ -109,6 +109,13 @@ Passing only a theme uses its paired layout and style; add parameters to mix:
 
 Everything else (avatar provider chain, mccag address, supersampling, player cap…) is documented where it is read, in `src/index.js` and `src/image.js`.
 
+## Clients
+
+Ready-made QQ bot integrations — send a keyword in a group or private chat, the bot replies with the rendered image:
+
+- **[koishi-plugin-mcstatus](https://github.com/yunxineko/koishi-plugin-mcstatus)** — Koishi plugin. Keyword, match mode and every request parameter are edited as forms in the Koishi console; it can also load the NapCat version's `rules.json` directly, so both clients can share one rule file.
+- **[napcat-plugin-mcstatus](https://github.com/yunxineko/napcat-plugin-mcstatus)** — NapCat plugin (v4.18.5 and earlier) or a standalone OneBot 11 client (`node client.mjs`, unaffected by the plugin whitelist introduced in v4.18.11). Rules live in a commented, hot-reloaded `rules.json`.
+
 ## Deployment
 
 ```bash
