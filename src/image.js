@@ -451,6 +451,13 @@ function describeTheme(name) {
     layout: theme.layout ?? DEFAULT_LAYOUT,
     style: theme.style ?? 'material',
     styleLabel: (STYLES[theme.style] ?? STYLES.material).label,
+    // 给调试台画色卡用：只挑四个有辨识度的颜色，不暴露整套 palette
+    colors: {
+      background: theme.background,
+      accent: theme.accent ?? theme.online,
+      online: theme.online,
+      warning: theme.warning,
+    },
   };
 }
 
