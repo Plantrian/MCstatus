@@ -722,6 +722,10 @@ apt-get install -y --no-install-recommends fonts-dejavu-core fonts-noto-color-em
 | `LOG_REQUESTS` | `on` | Request logging; `off` disables it (handy when checking whether requests reach the service) |
 | `OVERVIEW_SERVERS` | — | Default server list for the overview, so `/api/overview.png` can be called without parameters |
 | `MAX_OVERVIEW_SERVERS` | `8` | Maximum servers per overview request |
+| `RATE_LIMIT_ENABLED` | `on` | Rate limiting on/off (`off` disables) |
+| `RATE_LIMIT_WINDOW_MS` | `60000` | Rate limit window in milliseconds |
+| `RATE_LIMIT_MAX` | `120` | Requests per window for JSON endpoints (per IP) |
+| `RATE_LIMIT_MAX_IMAGE` | `30` | Requests per window for image endpoints (canvas rendering is CPU heavy) |
 | `BANNER_THEME` | `default` | Default theme (7 available, see section 4) |
 | `BANNER_LAYOUT` | `stack` | Default layout (`stack` / `compact` / `split`); a theme's paired layout wins when one is given |
 | `BANNER_DEFAULT_SCALE` | `2` | Default image output multiplier (1 = 800×400) |

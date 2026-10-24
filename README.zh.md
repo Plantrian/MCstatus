@@ -718,6 +718,10 @@ apt-get install -y --no-install-recommends fonts-dejavu-core fonts-noto-color-em
 | `LOG_REQUESTS` | `on` | 请求日志，`off` 关闭（排查「请求有没有打到本服务」时很有用） |
 | `OVERVIEW_SERVERS` | — | 多服一览的默认服务器列表，配好后 `/api/overview.png` 可以不传参 |
 | `MAX_OVERVIEW_SERVERS` | `8` | 多服一览一次最多查多少台 |
+| `RATE_LIMIT_ENABLED` | `on` | 限流开关，`off` 关闭 |
+| `RATE_LIMIT_WINDOW_MS` | `60000` | 限流统计窗口（毫秒） |
+| `RATE_LIMIT_MAX` | `120` | 窗口内 JSON 接口的允许次数（按 IP 计数） |
+| `RATE_LIMIT_MAX_IMAGE` | `30` | 窗口内图片接口的允许次数，渲染吃 CPU 所以收得更紧 |
 | `BANNER_THEME` | `default` | 默认主题（7 套可选，见第 4 节） |
 | `BANNER_LAYOUT` | `stack` | 默认布局（`stack` / `compact` / `split`）；传了主题时以主题配套为准 |
 | `BANNER_DEFAULT_SCALE` | `2` | 图片默认输出倍数（1 = 800×400） |

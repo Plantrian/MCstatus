@@ -41,6 +41,20 @@ const APP_PORT = Number.parseInt(process.env.PORT ?? '3000', 10) || 3000;
 const MAX_OVERVIEW_SERVERS = Number.parseInt(process.env.MAX_OVERVIEW_SERVERS ?? '8', 10) || 8;
 const CACHE_MAX_AGE_SECONDS = Math.round(CACHE_TTL_MS / 1000);
 
+/**
+ * 限流：内存里的令牌桶，按 IP + 接口类别计数，不引入额外依赖。
+ *   RATE_LIMIT_ENABLED=off      关掉限流
+ *   RATE_LIMIT_WINDOW_MS=60000  统计窗口
+ *   RATE_LIMIT_MAX=120          窗口内 JSON 接口的允许次数
+ *   RATE_LIMIT_MAX_IMAGE=30     窗口内图片接口的允许次数（渲染吃 CPU，收得更紧）
+ */
+const RATE_LIMIT = {
+  enabled: (process.env.RATE_LIMIT_ENABLED ?? 'on').toLowerCase() !== 'off',
+  windowMs: Number.parseInt(process.env.RATE_LIMIT_WINDOW_MS ?? '60000', 10) || 60_000,
+  max: Number.parseInt(process.env.RATE_LIMIT_MAX ?? '120', 10) || 120,
+  maxImage: Number.parseInt(process.env.RATE_LIMIT_MAX_IMAGE ?? '30', 10) || 30,
+};
+
 const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', true);
@@ -75,9 +89,99 @@ if ((process.env.LOG_REQUESTS || 'on').toLowerCase() !== 'off') {
   });
 }
 
+/* -------------------------------- 限流 ---------------------------------- */
+
+/** key = `${ip}|${类别}` → { count, resetAt } */
+const rateBuckets = new Map();
+
+/** 取一个令牌；成功返回剩余次数，失败返回需要等待的秒数 */
+function takeToken(key, limit) {
+  const now = Date.now();
+  const bucket = rateBuckets.get(key);
+  if (!bucket || now >= bucket.resetAt) {
+    const resetAt = now + RATE_LIMIT.windowMs;
+    rateBuckets.set(key, { count: 1, resetAt });
+    return { ok: true, remaining: limit - 1, retryAfter: 0, resetAt };
+  }
+  if (bucket.count >= limit) {
+    return {
+      ok: false,
+      remaining: 0,
+      retryAfter: Math.max(1, Math.ceil((bucket.resetAt - now) / 1000)),
+      resetAt: bucket.resetAt,
+    };
+  }
+  bucket.count += 1;
+  return { ok: true, remaining: limit - bucket.count, retryAfter: 0, resetAt: bucket.resetAt };
+}
+
+// 定期回收过期桶，避免长跑之后 Map 无限增长
+const rateSweeper = setInterval(
+  () => {
+    const now = Date.now();
+    for (const [key, bucket] of rateBuckets) {
+      if (now >= bucket.resetAt) rateBuckets.delete(key);
+    }
+  },
+  Math.max(10_000, RATE_LIMIT.windowMs)
+);
+if (typeof rateSweeper.unref === 'function') rateSweeper.unref();
+
+if (RATE_LIMIT.enabled) {
+  app.use((req, res, next) => {
+    // 探活接口不计流，免得监控把自己限死
+    if (req.path === '/healthz') {
+      next();
+      return;
+    }
+
+    // 图片接口要跑 canvas 渲染，单独用更紧的额度
+    const isImage = req.path.endsWith('.png');
+    const limit = isImage ? RATE_LIMIT.maxImage : RATE_LIMIT.max;
+    const result = takeToken(`${req.ip}|${isImage ? 'image' : 'api'}`, limit);
+
+    res.set('RateLimit-Limit', String(limit));
+    res.set('RateLimit-Remaining', String(result.remaining));
+    res.set('RateLimit-Reset', String(Math.ceil((result.resetAt - Date.now()) / 1000)));
+
+    if (result.ok) {
+      next();
+      return;
+    }
+
+    res.set('Retry-After', String(result.retryAfter));
+
+    // 图片接口继续遵守「永远返回一张图」的约定
+    if (isImage) {
+      renderMessageBanner(
+        {
+          kind: 'invalid',
+          code: 'RATE_LIMITED',
+          message: `请求太频繁，${result.retryAfter} 秒后再试`,
+          hint: '可用 RATE_LIMIT_MAX_IMAGE 调整图片接口额度',
+        },
+        { outputScale: 1, theme: DEFAULT_THEME }
+      )
+        .then((png) => {
+          res.status(429).type('png').set('Cache-Control', 'no-store').send(png);
+        })
+        .catch(() => {
+          res.status(429).json({ online: false, error: '请求太频繁', errorCode: 'RATE_LIMITED' });
+        });
+      return;
+    }
+
+    res.status(429).json({
+      online: false,
+      error: `请求太频繁，${result.retryAfter} 秒后再试`,
+      errorCode: 'RATE_LIMITED',
+      retryAfter: result.retryAfter,
+    });
+  });
+}
+
 /** 判断查询串里的布尔值（refresh=1 / refresh=true） */
-function isTruthy(value) {
-  if (value === undefined || value === null) return false;
+function isTruthy(value) {  if (value === undefined || value === null) return false;
   const normalized = String(value).trim().toLowerCase();
   return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
 }
@@ -105,7 +209,6 @@ function parseHost(rawHost) {
   return { value: host };
 }
 
-/** 校验端口：必须是 1-65535 的整数；未传时返回 fallback */
 function parsePort(rawPort, { name, fallback, errorCode }) {
   if (rawPort === undefined || rawPort === null || String(rawPort).trim() === '') {
     return { value: fallback };

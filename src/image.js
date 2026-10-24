@@ -2561,6 +2561,7 @@ const ERROR_TEXT = {
     TOO_MANY_SERVERS: '一次可查询的服务器数量超出上限',
     SERVER_ENTRY_INVALID: '服务器条目格式不正确',
     NAME_INVALID: '显示名称不合法（不能含换行或控制字符，最长 60 字符）',
+    RATE_LIMITED: '请求太频繁，请稍后再试',
   },
   en: {
     TIMEOUT: 'Timed out: the server did not respond in time',
@@ -2584,6 +2585,7 @@ const ERROR_TEXT = {
     TOO_MANY_SERVERS: 'Too many servers requested',
     SERVER_ENTRY_INVALID: 'Invalid server entry format',
     NAME_INVALID: '"name" is invalid (no newlines / control characters, max 60 characters)',
+    RATE_LIMITED: 'Too many requests, please retry later',
   },
 };
 
