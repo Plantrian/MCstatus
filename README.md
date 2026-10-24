@@ -12,6 +12,9 @@ Status API for **Minecraft Java Edition** servers. It speaks SLP (TCP) and GameS
 - **7 themes × 5 visual styles × 3 layouts**, all switchable through URL parameters
 - Player avatars are rendered in-house: we fetch skins ourselves and crop/scale them, no third-party avatar service required
 
+## Public API
+  <https://mcstatus.windwhispers.top>
+
 ## Quick start
 
 Node **≥ 18.17** (`canvas` is a native module).
